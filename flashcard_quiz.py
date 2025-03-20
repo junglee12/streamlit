@@ -2,13 +2,20 @@ import streamlit as st
 import pandas as pd
 import random
 
-def load_flashcards(csv_file):
-    """Loads flashcards from a CSV file into a list of dictionaries.
+def load_flashcards(uploaded_file):
+    """Loads flashcards from a CSV or XLSX file into a list of dictionaries.
     Assumes the first column is 'questions' and the second is 'answer'."""
     try:
-        df = pd.read_csv(csv_file)
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        elif uploaded_file.name.endswith('.xlsx'):
+            df = pd.read_excel(uploaded_file)
+        else:
+            st.error("Unsupported file format. Please upload a CSV or XLSX file.")
+            return None
+
         if len(df.columns) < 2:
-            st.error("CSV file must contain at least two columns (questions and answers).")
+            st.error("File must contain at least two columns (questions and answers).")
             return None
 
         # Rename columns to 'questions' and 'answer' for consistency
@@ -17,13 +24,13 @@ def load_flashcards(csv_file):
         flashcards = df.to_dict('records')
         return flashcards
     except FileNotFoundError:
-        st.error(f"File not found: {csv_file}")
+        st.error(f"File not found: {uploaded_file.name}")
         return None
     except pd.errors.EmptyDataError:
-        st.error(f"The CSV file is empty: {csv_file}")
+        st.error(f"The file is empty: {uploaded_file.name}")
         return None
     except Exception as e:
-        st.error(f"An error occurred while reading the CSV file: {e}")
+        st.error(f"An error occurred while reading the file: {e}")
         return None
 
 def generate_options(correct_answer, all_answers, num_options=5):
@@ -60,10 +67,10 @@ def check_answer(user_answer, correct_answer):
 def main():
     st.title("Flashcard Quiz App")
 
-    csv_file = st.file_uploader("Upload your flashcard CSV file", type="csv")
+    uploaded_file = st.file_uploader("Upload your flashcard file (CSV or XLSX)", type=["csv", "xlsx"])
 
-    if csv_file is not None:
-        flashcards = load_flashcards(csv_file)
+    if uploaded_file is not None:
+        flashcards = load_flashcards(uploaded_file)
 
         if flashcards:
             all_answers = [card['answer'] for card in flashcards]
