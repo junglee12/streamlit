@@ -98,6 +98,8 @@ def main():
                 st.session_state.submitted = False
             if 'show_answer_clicked' not in st.session_state:
                 st.session_state.show_answer_clicked = False
+            if 'incorrect_question_indices' not in st.session_state:
+                st.session_state.incorrect_question_indices = set()
 
             if not st.session_state.quiz_started:
                 if st.button("Start Quiz"):
@@ -113,6 +115,7 @@ def main():
                     st.session_state.user_answers = {}
                     st.session_state.submitted = False
                     st.session_state.show_answer_clicked = False
+                    st.session_state.incorrect_question_indices = set()
                     st.rerun()
 
             if st.session_state.quiz_started:
@@ -141,10 +144,10 @@ def main():
                                     st.session_state.correct_questions.append(current_card)
                                 else:
                                     st.error("Incorrect.")
-                                    st.session_state.incorrect_count += 1
                                     st.session_state.incorrect_questions.append(current_card)
                                 st.session_state.submitted = True
                                 st.session_state.show_answer = True
+                                st.session_state.incorrect_question_indices.add(current_card_index)
                                 st.rerun()
                         else:
                             if st.button("Next Question", key=f"next_{current_card_index}"):
@@ -159,12 +162,15 @@ def main():
                             st.session_state.show_answer = True
                             st.session_state.submitted = True
                             st.session_state.show_answer_clicked = True
-                            st.session_state.incorrect_count += 1
-                            st.session_state.incorrect_questions.append(current_card)
+                            st.session_state.incorrect_question_indices.add(current_card_index)
                             st.rerun()
 
                     if st.session_state.show_answer:
                         st.write(f"**Correct Answer:** {current_card['answer']}")
+                        if current_card_index in st.session_state.incorrect_question_indices:
+                            if current_card not in st.session_state.incorrect_questions:
+                                st.session_state.incorrect_questions.append(current_card)
+                                st.session_state.incorrect_count += 1
 
                 else:
                     st.write(f"**Quiz Completed!**")
@@ -193,6 +199,7 @@ def main():
                         st.session_state.user_answers = {}
                         st.session_state.submitted = False
                         st.session_state.show_answer_clicked = False
+                        st.session_state.incorrect_question_indices = set()
                         st.rerun()
                 st.write(f"**Remaining Questions:** {len(flashcards) - st.session_state.current_question_index}")
                 st.write(f"**Correct Answers:** {st.session_state.correct_count}")
