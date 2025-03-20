@@ -96,6 +96,8 @@ def main():
                 st.session_state.user_answers = {}
             if 'submitted' not in st.session_state:
                 st.session_state.submitted = False
+            if 'show_answer_clicked' not in st.session_state:
+                st.session_state.show_answer_clicked = False
 
             if not st.session_state.quiz_started:
                 if st.button("Start Quiz"):
@@ -110,6 +112,7 @@ def main():
                     st.session_state.show_answer = False
                     st.session_state.user_answers = {}
                     st.session_state.submitted = False
+                    st.session_state.show_answer_clicked = False
                     st.rerun()
 
             if st.session_state.quiz_started:
@@ -130,7 +133,7 @@ def main():
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        if not st.session_state.submitted:
+                        if not st.session_state.submitted and not st.session_state.show_answer_clicked:
                             if st.button("Submit", key=f"submit_{current_card_index}"):
                                 if check_answer(st.session_state.user_answers[current_card_index], current_card['answer']):
                                     st.success("Correct!")
@@ -148,11 +151,16 @@ def main():
                                 st.session_state.current_question_index += 1
                                 st.session_state.show_answer = False
                                 st.session_state.submitted = False
+                                st.session_state.show_answer_clicked = False
                                 st.rerun()
 
                     with col2:
                         if st.button("Show Answer", key=f"show_answer_{current_card_index}"):
                             st.session_state.show_answer = True
+                            st.session_state.submitted = True
+                            st.session_state.show_answer_clicked = True
+                            st.session_state.incorrect_count += 1
+                            st.session_state.incorrect_questions.append(current_card)
                             st.rerun()
 
                     if st.session_state.show_answer:
@@ -184,6 +192,7 @@ def main():
                         st.session_state.show_answer = False
                         st.session_state.user_answers = {}
                         st.session_state.submitted = False
+                        st.session_state.show_answer_clicked = False
                         st.rerun()
                 st.write(f"**Remaining Questions:** {len(flashcards) - st.session_state.current_question_index}")
                 st.write(f"**Correct Answers:** {st.session_state.correct_count}")
