@@ -72,6 +72,10 @@ def main():
                 st.session_state.quiz_started = False
             if 'correct_count' not in st.session_state:
                 st.session_state.correct_count = 0
+            if 'incorrect_count' not in st.session_state:
+                st.session_state.incorrect_count = 0
+            if 'correct_questions' not in st.session_state:
+                st.session_state.correct_questions = []
             if 'incorrect_questions' not in st.session_state:
                 st.session_state.incorrect_questions = []
             if 'current_question_index' not in st.session_state:
@@ -83,17 +87,22 @@ def main():
                 st.session_state.show_answer = False
             if 'user_answers' not in st.session_state:
                 st.session_state.user_answers = {}
+            if 'submitted' not in st.session_state:
+                st.session_state.submitted = False
 
             if not st.session_state.quiz_started:
                 if st.button("Start Quiz"):
                     st.session_state.quiz_started = True
                     st.session_state.correct_count = 0
+                    st.session_state.incorrect_count = 0
+                    st.session_state.correct_questions = []
                     st.session_state.incorrect_questions = []
                     st.session_state.current_question_index = 0
                     st.session_state.questions_order = list(range(len(flashcards)))
                     random.shuffle(st.session_state.questions_order)
                     st.session_state.show_answer = False
                     st.session_state.user_answers = {}
+                    st.session_state.submitted = False
                     st.rerun()
 
             if st.session_state.quiz_started:
@@ -114,15 +123,26 @@ def main():
 
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("Submit", key=f"submit_{current_card_index}"):
-                            if check_answer(st.session_state.user_answers[current_card_index], current_card['answer']):
-                                st.success("Correct!")
-                                st.session_state.correct_count += 1
-                            else:
-                                st.error("Incorrect.")
-                                st.session_state.incorrect_questions.append(current_card)
-                            st.session_state.show_answer = True
-                            st.rerun()
+                        if not st.session_state.submitted:
+                            if st.button("Submit", key=f"submit_{current_card_index}"):
+                                if check_answer(st.session_state.user_answers[current_card_index], current_card['answer']):
+                                    st.success("Correct!")
+                                    st.session_state.correct_count += 1
+                                    st.session_state.correct_questions.append(current_card)
+                                else:
+                                    st.error("Incorrect.")
+                                    st.session_state.incorrect_count += 1
+                                    st.session_state.incorrect_questions.append(current_card)
+                                st.session_state.submitted = True
+                                st.session_state.show_answer = True
+                                st.rerun()
+                        else:
+                            if st.button("Next Question", key=f"next_{current_card_index}"):
+                                st.session_state.current_question_index += 1
+                                st.session_state.show_answer = False
+                                st.session_state.submitted = False
+                                st.rerun()
+
                     with col2:
                         if st.button("Show Answer", key=f"show_answer_{current_card_index}"):
                             st.session_state.show_answer = True
@@ -130,30 +150,37 @@ def main():
 
                     if st.session_state.show_answer:
                         st.write(f"**Correct Answer:** {current_card['answer']}")
-                        if st.button("Next Question", key=f"next_{current_card_index}"):
-                            st.session_state.current_question_index += 1
-                            st.session_state.show_answer = False
-                            st.rerun()
+
                 else:
                     st.write(f"**Quiz Completed!**")
                     st.write(f"**Correct Answers:** {st.session_state.correct_count} out of {len(flashcards)}")
-                    st.write(f"**Incorrect Questions:** {len(st.session_state.incorrect_questions)}")
+                    st.write(f"**Incorrect Answers:** {st.session_state.incorrect_count} out of {len(flashcards)}")
                     if st.session_state.incorrect_questions:
                         st.write("**Review Incorrect Questions:**")
                         for incorrect_question in st.session_state.incorrect_questions:
                             st.write(f"- **Question:** {incorrect_question['questions']}")
                             st.write(f"- **Correct Answer:** {incorrect_question['answer']}")
+                    if st.session_state.correct_questions:
+                        st.write("**Review Correct Questions:**")
+                        for correct_question in st.session_state.correct_questions:
+                            st.write(f"- **Question:** {correct_question['questions']}")
+                            st.write(f"- **Correct Answer:** {correct_question['answer']}")
                     if st.button("Restart Quiz"):
                         st.session_state.quiz_started = False
                         st.session_state.correct_count = 0
+                        st.session_state.incorrect_count = 0
+                        st.session_state.correct_questions = []
                         st.session_state.incorrect_questions = []
                         st.session_state.current_question_index = 0
                         st.session_state.questions_order = list(range(len(flashcards)))
                         random.shuffle(st.session_state.questions_order)
                         st.session_state.show_answer = False
                         st.session_state.user_answers = {}
+                        st.session_state.submitted = False
                         st.rerun()
                 st.write(f"**Remaining Questions:** {len(flashcards) - st.session_state.current_question_index}")
+                st.write(f"**Correct Answers:** {st.session_state.correct_count}")
+                st.write(f"**Incorrect Answers:** {st.session_state.incorrect_count}")
 
 if __name__ == "__main__":
     main()
