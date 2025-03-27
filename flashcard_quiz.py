@@ -340,11 +340,43 @@ def display_all_quiz_results():
 
 # --- Main Application ---
 
-# --- Main Application ---
-
 def main():
     st.set_page_config(layout="wide")
     st.title("🧠 Flashcard Quiz App")
+
+    # --- Instructions Expander ---
+    with st.expander("ℹ️ How to Use This App", expanded=False): # Start collapsed
+        st.markdown(
+            """
+            **Welcome to the Flashcard Quiz App!**
+
+            1.  **Enter Your Name:** Go to the **sidebar** (on the left) and enter your name under "User". This is needed to save your quiz results.
+            2.  **Upload Your Flashcards:**
+                *   In the sidebar under "Load Flashcards", click "Browse files".
+                *   Select a **CSV** or **XLSX** (Excel) file.
+                *   **File Format & Headers:**
+                    *   Your file **must** have at least two columns.
+                    *   The **very first row** of your file should contain **headers** (like "Term", "Definition", "Question", "Answer", etc.). These headers are **ignored** and won't be part of the quiz.
+                    *   The **first column** (starting from the second row) will be treated as the **Question**.
+                    *   The **second column** (starting from the second row) will be treated as the **Answer**.
+                    *   Any other columns in your file will be ignored.
+            3.  **Start the Quiz:** Once flashcards are loaded, click the "**🚀 Start Quiz**" button in the main area.
+            4.  **Answer Questions:**
+                *   Read the question displayed.
+                *   Select your answer from the multiple-choice options.
+                *   Click "**✅ Submit Answer**". You'll get immediate feedback.
+                *   *(Optional)*: Click "**💡 Show Answer**" if you're stuck (this will mark the question as incorrect if you haven't submitted yet).
+            5.  **Continue:** After submitting or showing the answer, the main button changes to "**➡️ Next Question**". Click it to proceed.
+            6.  **Restarting:**
+                *   **During Quiz:** Use the "**🔁 Restart Quiz Now**" button in the **sidebar** under "Quiz Controls" to start over with the same flashcards at any time.
+                *   **After Quiz:** Once finished, a "**Restart Quiz**" button appears below the results.
+            7.  **View Results:**
+                *   Your final score and a review of incorrect/correct answers appear automatically when the quiz ends.
+                *   To see a history of all past attempts, click "**Show All Past Results**" in the **sidebar** under "History".
+
+            **Good luck!** ✨
+            """
+        )
 
     # --- User Identification ---
     st.sidebar.header("User")
@@ -360,42 +392,34 @@ def main():
 
     # --- File Upload ---
     st.sidebar.header("Load Flashcards")
-    uploaded_file = st.sidebar.file_uploader("Upload CSV or XLSX file", type=["csv", "xlsx", "xls"])
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload CSV or XLSX file",
+        type=["csv", "xlsx", "xls"],
+        help="Select a CSV or Excel file. Needs at least two columns: Question (col 1) and Answer (col 2)." # Added help text
+    )
 
     # --- Handle File Upload/Removal ---
+    # ... (File handling logic remains the same) ...
     if uploaded_file is not None:
-        # Load only if flashcards aren't already loaded from this specific file
-        # Simple check: If no flashcards, load. If file name changes, reload.
-        # (More robust check could use file ID if needed)
         current_file_name = uploaded_file.name
         previous_file_name = st.session_state.get('_loaded_file_name', None)
-
         if SS_FLASHCARDS not in st.session_state or current_file_name != previous_file_name:
             flashcards = load_flashcards(uploaded_file)
             if flashcards:
                 st.session_state[SS_FLASHCARDS] = flashcards
-                st.session_state['_loaded_file_name'] = current_file_name # Track loaded file name
+                st.session_state['_loaded_file_name'] = current_file_name
                 st.sidebar.success(f"Loaded {len(flashcards)} flashcards.")
-                # Clear old quiz state if new file loaded or reloaded
-                if SS_QUIZ_DATA in st.session_state:
-                    del st.session_state[SS_QUIZ_DATA]
-                if SS_CURRENT_INDEX in st.session_state:
-                    del st.session_state[SS_CURRENT_INDEX]
-                # Clear cached answers if file changes
-                if 'all_answers' in st.session_state:
-                    del st.session_state['all_answers']
-
-                st.rerun() # Rerun to update UI after loading/clearing state
+                if SS_QUIZ_DATA in st.session_state: del st.session_state[SS_QUIZ_DATA]
+                if SS_CURRENT_INDEX in st.session_state: del st.session_state[SS_CURRENT_INDEX]
+                if 'all_answers' in st.session_state: del st.session_state['all_answers']
+                st.rerun()
             else:
-                # Loading failed, clear any potentially loaded cards/state
                 if SS_FLASHCARDS in st.session_state: del st.session_state[SS_FLASHCARDS]
                 if '_loaded_file_name' in st.session_state: del st.session_state['_loaded_file_name']
                 if SS_QUIZ_DATA in st.session_state: del st.session_state[SS_QUIZ_DATA]
                 if SS_CURRENT_INDEX in st.session_state: del st.session_state[SS_CURRENT_INDEX]
                 if 'all_answers' in st.session_state: del st.session_state['all_answers']
-
     elif SS_FLASHCARDS in st.session_state:
-         # File removed in uploader UI, clear related state
          del st.session_state[SS_FLASHCARDS]
          if '_loaded_file_name' in st.session_state: del st.session_state['_loaded_file_name']
          if SS_QUIZ_DATA in st.session_state: del st.session_state[SS_QUIZ_DATA]
@@ -403,38 +427,31 @@ def main():
          if 'all_answers' in st.session_state: del st.session_state['all_answers']
          st.rerun()
 
-
     # --- Process Flashcards and Quiz State ---
     if SS_FLASHCARDS in st.session_state:
         flashcards = st.session_state[SS_FLASHCARDS]
-
-        # Cache all unique answers once per flashcard set
         if 'all_answers' not in st.session_state:
              st.session_state['all_answers'] = list(set(card[COL_ANSWER] for card in flashcards))
         all_answers = st.session_state['all_answers']
 
-        # Initialize quiz state if it doesn't exist for the loaded flashcards
         if SS_QUIZ_DATA not in st.session_state:
             st.session_state[SS_QUIZ_DATA] = _get_default_quiz_state(len(flashcards))
-            st.session_state[SS_QUIZ_DATA][QK_STARTED] = False # Explicitly set not started
+            st.session_state[SS_QUIZ_DATA][QK_STARTED] = False
 
         quiz_data = st.session_state[SS_QUIZ_DATA]
 
         # --- Sidebar Controls (Restart Button) ---
         st.sidebar.header("Quiz Controls")
-        # Show restart button in sidebar ONLY if quiz has started AND is not finished
         if quiz_data.get(QK_STARTED, False):
-             # Need to check if finished - calculate available indices here too
              all_indices_set = set(range(len(flashcards)))
              used_indices_set: Set[int] = quiz_data.get(QK_USED_QUESTIONS, set())
-             is_finished = not (all_indices_set - used_indices_set) # True if no available indices left
-
-             if not is_finished: # Only show if quiz is running AND not finished
-                 if st.sidebar.button("🔁 Restart Quiz Now", key="restart_quiz_sidebar", help="Stop the current quiz and start over."):
+             is_finished = not (all_indices_set - used_indices_set)
+             if not is_finished:
+                 if st.sidebar.button("🔁 Restart Quiz Now",
+                                      key="restart_quiz_sidebar",
+                                      help="Stop the current quiz and start over with the same flashcards."): # Added help text
                      start_quiz(st.session_state[SS_FLASHCARDS])
-                     # start_quiz calls rerun, execution effectively stops here for this run
              else:
-                # Optionally show a message or different control when finished
                 st.sidebar.info("Quiz finished. See results.")
 
         # --- Main Area: Start Button or Quiz Display ---
@@ -442,29 +459,23 @@ def main():
              st.info("Flashcards loaded. Press 'Start Quiz' to begin.")
              if st.button("🚀 Start Quiz", type="primary"):
                  start_quiz(st.session_state[SS_FLASHCARDS])
-                 # start_quiz calls rerun
 
         elif quiz_data.get(QK_STARTED, False):
             # --- Active Quiz Logic ---
-            # Determine available questions (recalculate here for main logic)
             all_indices = set(range(len(flashcards)))
             used_indices: Set[int] = quiz_data[QK_USED_QUESTIONS]
             available_indices = list(all_indices - used_indices)
 
-            # --- Quiz Completion Check ---
             if not available_indices:
-                # Quiz is finished, display results
+                # --- Quiz Completion Display ---
                 display_quiz_results()
-                # Attempt to record only once after completion
                 if 'results_recorded' not in quiz_data:
                      record_quiz_attempt()
-                     quiz_data['results_recorded'] = True # Mark as recorded
+                     quiz_data['results_recorded'] = True
             else:
                 # --- Display Current Question ---
-                # Choose the next question index randomly if not already set for this turn
                 if SS_CURRENT_INDEX not in st.session_state:
                     st.session_state[SS_CURRENT_INDEX] = random.choice(available_indices)
-                    # Ensure options are cleared when a new index is chosen
                     quiz_data[QK_CURRENT_OPTIONS] = None
 
                 current_card_index = st.session_state[SS_CURRENT_INDEX]
@@ -473,49 +484,40 @@ def main():
                 # --- Generate or Retrieve Options ---
                 options = quiz_data.get(QK_CURRENT_OPTIONS)
                 if not options:
-                    # Generate options only if they aren't already stored for this question turn
                     options = generate_options(current_card[COL_ANSWER], all_answers)
-                    quiz_data[QK_CURRENT_OPTIONS] = options # Store the generated options
+                    quiz_data[QK_CURRENT_OPTIONS] = options
 
                 # --- Display Question UI ---
                 if options:
                     user_answer = display_question(current_card, options, f"q_{current_card_index}")
                 else:
-                    st.error("Error: Could not generate/retrieve options.") # Fallback
+                    st.error("Error: Could not generate/retrieve options.")
                     user_answer = None
 
-                # Store the user's current selection immediately
                 quiz_data[QK_USER_ANSWERS][current_card_index] = user_answer
 
                 st.write("---") # Separator
 
                 # --- Action Buttons (Toggle Logic) ---
                 submitted = quiz_data[QK_SUBMITTED]
-                show_answer_clicked = quiz_data[QK_SHOW_ANSWER_CLICKED]
-
-                # Use a consistent key for the main action button across states
+                show_answer_clicked = quiz_data[QK_SHOW_ANSWER_clicked]
                 action_button_key = f"action_button_{current_card_index}"
 
                 if submitted or show_answer_clicked:
-                    # --- State: Show "Next Question" ---
                     if st.button("➡️ Next Question", key=action_button_key):
                          handle_next_question()
-                         # handle_next_question calls rerun, so script execution stops here
                 else:
-                    # --- State: Show "Submit Answer" and "Show Answer" ---
-                    col_submit, col_show = st.columns(2) # Place Submit and Show side-by-side
-
+                    col_submit, col_show = st.columns(2)
                     with col_submit:
-                        submit_disabled = user_answer is None
-                        if st.button("✅ Submit Answer", key=action_button_key, disabled=submit_disabled, type="primary"):
+                         submit_disabled = user_answer is None
+                         if st.button("✅ Submit Answer", key=action_button_key, disabled=submit_disabled, type="primary"):
                             handle_submit(current_card_index)
-                            # handle_submit calls rerun, so script execution stops here
-
                     with col_show:
-                        show_answer_key = f"show_answer_{current_card_index}"
-                        if st.button("💡 Show Answer", key=show_answer_key):
+                         show_answer_key = f"show_answer_{current_card_index}"
+                         if st.button("💡 Show Answer",
+                                      key=show_answer_key,
+                                      help="Reveal the correct answer. Counts as incorrect if used before submitting."): # Added help text
                              handle_show_answer(current_card_index)
-                             # handle_show_answer calls rerun, so script execution stops here
 
                 st.write("---")
                 # --- Progress Indicators ---
@@ -532,7 +534,7 @@ def main():
     if st.sidebar.button("Show All Past Results"):
         display_all_quiz_results()
 
-# Make sure the rest of your functions (load_flashcards, start_quiz, etc.) exist outside main()
+# Ensure the rest of your functions (load_flashcards, start_quiz, etc.) exist outside main()
 
 if __name__ == "__main__":
     main()
