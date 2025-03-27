@@ -500,7 +500,7 @@ def main():
 
                 # --- Action Buttons (Toggle Logic) ---
                 submitted = quiz_data[QK_SUBMITTED]
-                show_answer_clicked = quiz_data[QK_SHOW_ANSWER_clicked]
+                show_answer_clicked = quiz_data[QK_SHOW_ANSWER_CLICKED]
                 action_button_key = f"action_button_{current_card_index}"
 
                 if submitted or show_answer_clicked:
