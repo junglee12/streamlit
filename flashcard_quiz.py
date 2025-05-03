@@ -504,6 +504,12 @@ def main():
                 action_button_key = f"action_button_{current_card_index}"
 
                 if submitted or show_answer_clicked:
+                    # --- Display Feedback Persistently ---
+                    # Ensure the answer is shown if either submit or show answer was clicked
+                    if quiz_data[QK_SHOW_ANSWER]:
+                        correct_answer_text = current_card[COL_ANSWER]
+                        # You could potentially use st.success/st.error here too based on correctness if needed
+                        st.info(f"**Correct Answer:** {correct_answer_text}")
                     if st.button("➡️ Next Question", key=action_button_key):
                          handle_next_question()
                 else:
